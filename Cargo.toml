@@ -4,3 +4,27 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+futures-util = "0.3.31"
+rand = "*"
+serde = "*"
+serde_json = "*"
+
+[dependencies.tokio]
+version = "*"
+features = ["macros", "net", "sync", "rt-multi-thread"]
+
+[dependencies.tokio-tungstenite]
+version = "*"
+features = ["tokio-rustls"]
+
+[dependencies.rand_core]
+version = "*"
+features = ["getrandom"]
+
+[dependencies.argon2]
+version = "*"
+features = ["std"]
+
+[dependencies.sqlx]
+version = "*"
+features = ["mysql", "runtime-tokio"]
