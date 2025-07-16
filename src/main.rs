@@ -164,12 +164,18 @@ async fn handle_connection(global_data: Arc<GlobalData>, stream: TcpStream, addr
             }
             recv_msg = ws_stream.next() => {
                 if let Some(Ok(msg)) = recv_msg {
-                    direct_request(global_data.clone(), data.clone(), msg).await?;
+                    if let Err(err) = direct_request(global_data.clone(), data.clone(), msg).await {
+                        eprintln!("Error processing message: {}", err);
+                        break;
+                    }
                 }
             }
             send_msg = recv.recv() => {
                 if let Some(msg) = send_msg {
-                    ws_stream.send(msg).await?;
+                    if let Err(err) = ws_stream.send(msg).await {
+                        eprintln!("Error sending message: {}", err);
+                        break;
+                    }
                 } else {
                     break;
                 }
