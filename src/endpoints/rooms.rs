@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use tokio_tungstenite::tungstenite::{Message, Utf8Bytes};
 use crate::check_chatroom_empty;
 use crate::data::{ConnectionData, GlobalData};
 use crate::database::rooms::{create_room, get_room};
