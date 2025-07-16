@@ -8,14 +8,14 @@ pub struct Room {
     pub password_hash: String
 }
 
-pub async fn create_room(database_pool: &DatabasePool, name: &str, password_hash: &str) -> Result<Room, Error> {
-    let res = sqlx::query("INSERT INTO Rooms (Name, Password) VALUES (?, ?) RETURNING ID, Name, Password")
+pub async fn create_room(database_pool: &DatabasePool, name: &str, password_hash: &str) -> Result<i32, Error> {
+    let res = sqlx::query("INSERT INTO Rooms (Name, Password) VALUES (?, ?) RETURNING ID")
         .bind(name)
         .bind(password_hash)
         .fetch_one(database_pool.as_ref())
-        .await;
+        .await?;
 
-    res.map(to_room)
+    Ok(res.get(0))
 }
 
 pub async fn delete_room(database_pool: &DatabasePool, id: i32) -> Result<(), Error> {
@@ -36,7 +36,8 @@ pub async fn get_room(database_pool: &DatabasePool, id: i32) -> Result<Room, Err
 }
 
 pub async fn get_rooms(database_pool: &DatabasePool) -> Result<Vec<Room>, Error> {
-    let res = sqlx::query("SELECT * FROM Rooms")
+    let res = sqlx::query("SELECT * FROM Rooms WHERE ID > ?")
+        .bind(0)
         .fetch_all(database_pool.as_ref())
         .await;
 

@@ -46,7 +46,7 @@ async fn main() -> Result<(), Error> {
         ).await.expect("Failed to connect to database")
     );
 
-    let listen_addr = env::var("WS_ADDRESS").unwrap_or_else(|_| "127.0.0.1:8080".to_string());
+    let listen_addr = env::var("WS_ADDRESS").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
     let listen_addr = || listen_addr.clone();
     let listener = TcpListener::bind(listen_addr()).await.expect(format!("Failed to bind to {}", listen_addr()).as_str());
     println!("Listening on {}", listen_addr());
@@ -185,11 +185,13 @@ async fn handle_connection(global_data: Arc<GlobalData>, stream: TcpStream, addr
 
     {
         let mut connections = global_data.connections.write().await;
+        connections.remove(&id);
+    }
+    {
         let room = data.room.read().await;
         if let Some(room_id) = *room {
             check_chatroom_empty(&global_data, room_id).await?;
         }
-        connections.remove(&id);
     }
 
     Ok(())
@@ -225,7 +227,7 @@ pub async fn check_chatroom_empty(global_data: &GlobalData, room_id: i32) -> Res
             }
         }
     }
-    
+
     delete_room(&global_data.database_pool, room_id).await?;
     Ok(true)
 }

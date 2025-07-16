@@ -12,7 +12,8 @@ use crate::messages::direct_request::DirectRequest;
 use serde::Serialize;
 use std::sync::Arc;
 use tokio_tungstenite::tungstenite::{Message, Utf8Bytes};
-use crate::endpoints::rooms::{create_room_request, join_room_request, leave_room_request};
+use bytes::Bytes;
+use crate::endpoints::rooms::{create_room_request, get_rooms_request, join_room_request, leave_room_request};
 
 pub async fn direct_request(global_data: Arc<GlobalData>, connection_data: Arc<ConnectionData>, message: Message) -> Result<(), AnyErr> {
     if message.is_text() {
@@ -27,9 +28,22 @@ pub async fn direct_request(global_data: Arc<GlobalData>, connection_data: Arc<C
             "room_create" => create_room_request(global_data, connection_data, serde_json::from_value(request.payload)?, request.command_id).await,
             "room_join" => join_room_request(global_data, connection_data, serde_json::from_value(request.payload)?, request.command_id).await,
             "room_leave" => leave_room_request(global_data, connection_data).await,
+            "rooms" => get_rooms_request(global_data, connection_data, request.command_id).await,
             _ => Ok(())
         }
     } else if message.is_binary() {
+        let username = {
+            let account = connection_data.account.read().await;
+            account.username.clone()
+        };
+        let data = message.into_data();
+        //add a byte in front
+        let mut data_with_sender = vec![];
+        data_with_sender.push(username.len() as u8);
+        data_with_sender.extend_from_slice(username.as_bytes());
+        data_with_sender.extend_from_slice(data.as_ref());
+        let message = Message::Binary(Bytes::from(data_with_sender));
+
         let broadcast = connection_data.broadcast.read().await;
         for conn in global_data.connections.read().await.values() {
             if broadcast.contains(&conn.id) {
