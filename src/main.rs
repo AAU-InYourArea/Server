@@ -28,6 +28,7 @@ use tokio_tungstenite::tungstenite::{Message, Utf8Bytes};
 use tokio_tungstenite::WebSocketStream;
 use crate::data::{ConnectionData, GlobalData, Position};
 use crate::database::accounts::{create_account, get_by_username, set_session};
+use crate::database::rooms::delete_room;
 use crate::endpoints::direct_request;
 use crate::error::{AnyErr, ProtocolError};
 use crate::hash::{hash, random_session, verify};
@@ -178,6 +179,10 @@ async fn handle_connection(global_data: Arc<GlobalData>, stream: TcpStream, addr
 
     {
         let mut connections = global_data.connections.write().await;
+        let room = data.room.read().await;
+        if let Some(room_id) = *room {
+            check_chatroom_empty(&global_data, room_id).await?;
+        }
         connections.remove(&id);
     }
 
@@ -202,4 +207,19 @@ async fn send_protocol<T: Serialize>(ws_stream: &mut WebSocketStream<TcpStream>,
     let msg = serde_json::to_string(&msg)?;
     ws_stream.send(Message::Text(Utf8Bytes::from(msg))).await?;
     Ok(())
+}
+
+pub async fn check_chatroom_empty(global_data: &GlobalData, room_id: i32) -> Result<bool, AnyErr> {
+    let connections = global_data.connections.read().await;
+    for connection in connections.values() {
+        let connection_room = connection.room.read().await;
+        if let Some(room) = *connection_room {
+            if room == room_id {
+                return Ok(false);
+            }
+        }
+    }
+    
+    delete_room(&global_data.database_pool, room_id).await?;
+    Ok(true)
 }

@@ -1,6 +1,7 @@
 mod account;
 mod session;
 mod data_set;
+mod rooms;
 
 use crate::data::{ConnectionData, GlobalData};
 use crate::endpoints::account::account;
@@ -11,6 +12,7 @@ use crate::messages::direct_request::DirectRequest;
 use serde::Serialize;
 use std::sync::Arc;
 use tokio_tungstenite::tungstenite::{Message, Utf8Bytes};
+use crate::endpoints::rooms::{create_room_request, join_room_request, leave_room_request};
 
 pub async fn direct_request(global_data: Arc<GlobalData>, connection_data: Arc<ConnectionData>, message: Message) -> Result<(), AnyErr> {
     if message.is_text() {
@@ -22,6 +24,9 @@ pub async fn direct_request(global_data: Arc<GlobalData>, connection_data: Arc<C
             "logout" => logout(global_data, connection_data).await,
             "frequency" => set_frequency(connection_data, request.payload).await,
             "position" => set_position(connection_data, request.payload).await,
+            "room_create" => create_room_request(global_data, connection_data, serde_json::from_value(request.payload)?, request.command_id).await,
+            "room_join" => join_room_request(global_data, connection_data, serde_json::from_value(request.payload)?, request.command_id).await,
+            "room_leave" => leave_room_request(global_data, connection_data).await,
             _ => Ok(())
         }
     } else if message.is_binary() {
