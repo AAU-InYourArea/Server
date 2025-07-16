@@ -43,8 +43,8 @@ pub async fn direct_request(global_data: Arc<GlobalData>, connection_data: Arc<C
     }
 }
 
-async fn answer<T: Serialize>(connection_data: Arc<ConnectionData>, msg: T) -> Result<(), AnyErr> {
+async fn answer<T: Serialize>(connection_data: Arc<ConnectionData>, command_id: usize, msg: T) -> Result<(), AnyErr> {
     let msg = serde_json::to_string(&msg)?;
-    connection_data.channel.send(Message::Text(Utf8Bytes::from(msg))).await?;
+    connection_data.channel.send(Message::Text(Utf8Bytes::from(format!("{} {}", command_id, msg)))).await?;
     Ok(())
 }

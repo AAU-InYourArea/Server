@@ -1,8 +1,8 @@
-use std::sync::Arc;
-use tokio_tungstenite::tungstenite::{Message, Utf8Bytes};
 use crate::data::ConnectionData;
 use crate::error::AnyErr;
 use crate::messages::login::LoginResponse;
+use std::sync::Arc;
+use crate::endpoints::answer;
 
 pub async fn account(connection_data: Arc<ConnectionData>, command_id: usize) -> Result<(), AnyErr> {
     let response = {
@@ -14,7 +14,6 @@ pub async fn account(connection_data: Arc<ConnectionData>, command_id: usize) ->
         }
     };
 
-    let msg = serde_json::to_string(&response)?;
-    connection_data.channel.send(Message::Text(Utf8Bytes::from(format!("{} {}", command_id, msg)))).await?;
+    answer(connection_data, command_id, response).await?;
     Ok(())
 }

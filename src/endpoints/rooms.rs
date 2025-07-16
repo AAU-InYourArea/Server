@@ -3,6 +3,7 @@ use tokio_tungstenite::tungstenite::{Message, Utf8Bytes};
 use crate::check_chatroom_empty;
 use crate::data::{ConnectionData, GlobalData};
 use crate::database::rooms::{create_room, get_room};
+use crate::endpoints::answer;
 use crate::error::AnyErr;
 use crate::hash::verify;
 use crate::messages::rooms::{CreateChatroom, JoinChatroom};
@@ -14,7 +15,7 @@ pub async fn create_room_request(global_data: Arc<GlobalData>, connection_data: 
         *current_room = Some(room.id);
     }
 
-    connection_data.channel.send(Message::Text(Utf8Bytes::from(format!("{} {}", command_id, room.id)))).await?;
+    answer(connection_data, command_id, room.id).await?;
     Ok(())
 }
 
@@ -25,9 +26,9 @@ pub async fn join_room_request(global_data: Arc<GlobalData>, connection_data: Ar
             let mut current_room = connection_data.room.write().await;
             *current_room = Some(room.id);
         }
-        connection_data.channel.send(Message::Text(Utf8Bytes::from(format!("{} {}", command_id, room.id)))).await?;
+        answer(connection_data, command_id, room.id).await?;
     } else {
-        connection_data.channel.send(Message::Text(Utf8Bytes::from(format!("{} -1", command_id)))).await?;
+        answer(connection_data, command_id, -1).await?;
     }
 
     Ok(())
