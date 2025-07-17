@@ -30,7 +30,7 @@ pub struct ConnectionData {
     pub frequency: RwLock<u8>,
 
     /// The current room id, if any
-    pub room: RwLock<Option<u32>>,
+    pub room: RwLock<Option<i32>>,
 
     /// A tokio mpsc channel for sending messages to this connection
     pub channel: Sender<Message>,

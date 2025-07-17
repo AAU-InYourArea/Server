@@ -5,21 +5,25 @@ use crate::database::DatabasePool;
 pub struct Room {
     pub id: i32,
     pub name: String,
-    pub description: String,
-    pub password_hash: String,
-    pub creator: i32
+    pub password_hash: String
 }
 
-pub async fn create_room(database_pool: &DatabasePool, name: &str, description: &str, password_hash: &str, creator: i32) -> Result<Room, Error> {
-    let res = sqlx::query("INSERT INTO Rooms (Name, Description, Password, Creator) VALUES (?, ?, ?, ?) RETURNING ID, Name, Description, Password, Creator")
+pub async fn create_room(database_pool: &DatabasePool, name: &str, password_hash: &str) -> Result<i32, Error> {
+    let res = sqlx::query("INSERT INTO Rooms (Name, Password) VALUES (?, ?) RETURNING ID")
         .bind(name)
-        .bind(description)
         .bind(password_hash)
-        .bind(creator)
         .fetch_one(database_pool.as_ref())
-        .await;
+        .await?;
 
-    res.map(to_room)
+    Ok(res.get(0))
+}
+
+pub async fn delete_room(database_pool: &DatabasePool, id: i32) -> Result<(), Error> {
+    sqlx::query("DELETE FROM Rooms WHERE ID = ?")
+        .bind(id)
+        .execute(database_pool.as_ref())
+        .await
+        .map(|_| ())
 }
 
 pub async fn get_room(database_pool: &DatabasePool, id: i32) -> Result<Room, Error> {
@@ -32,7 +36,8 @@ pub async fn get_room(database_pool: &DatabasePool, id: i32) -> Result<Room, Err
 }
 
 pub async fn get_rooms(database_pool: &DatabasePool) -> Result<Vec<Room>, Error> {
-    let res = sqlx::query("SELECT * FROM Rooms")
+    let res = sqlx::query("SELECT * FROM Rooms WHERE ID > ?")
+        .bind(0)
         .fetch_all(database_pool.as_ref())
         .await;
 
@@ -43,8 +48,6 @@ fn to_room(row: MySqlRow) -> Room {
     Room {
         id: row.get(0),
         name: row.get(1),
-        description: row.get(2),
-        password_hash: row.get(3),
-        creator: row.get(4)
+        password_hash: row.get(2)
     }
 }

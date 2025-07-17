@@ -28,6 +28,7 @@ use tokio_tungstenite::tungstenite::{Message, Utf8Bytes};
 use tokio_tungstenite::WebSocketStream;
 use crate::data::{ConnectionData, GlobalData, Position};
 use crate::database::accounts::{create_account, get_by_username, set_session};
+use crate::database::rooms::delete_room;
 use crate::endpoints::direct_request;
 use crate::error::{AnyErr, ProtocolError};
 use crate::hash::{hash, random_session, verify};
@@ -45,7 +46,7 @@ async fn main() -> Result<(), Error> {
         ).await.expect("Failed to connect to database")
     );
 
-    let listen_addr = env::var("WS_ADDRESS").unwrap_or_else(|_| "127.0.0.1:8080".to_string());
+    let listen_addr = env::var("WS_ADDRESS").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
     let listen_addr = || listen_addr.clone();
     let listener = TcpListener::bind(listen_addr()).await.expect(format!("Failed to bind to {}", listen_addr()).as_str());
     println!("Listening on {}", listen_addr());
@@ -163,12 +164,18 @@ async fn handle_connection(global_data: Arc<GlobalData>, stream: TcpStream, addr
             }
             recv_msg = ws_stream.next() => {
                 if let Some(Ok(msg)) = recv_msg {
-                    direct_request(global_data.clone(), data.clone(), msg).await?;
+                    if let Err(err) = direct_request(global_data.clone(), data.clone(), msg).await {
+                        eprintln!("Error processing message: {}", err);
+                        break;
+                    }
                 }
             }
             send_msg = recv.recv() => {
                 if let Some(msg) = send_msg {
-                    ws_stream.send(msg).await?;
+                    if let Err(err) = ws_stream.send(msg).await {
+                        eprintln!("Error sending message: {}", err);
+                        break;
+                    }
                 } else {
                     break;
                 }
@@ -179,6 +186,12 @@ async fn handle_connection(global_data: Arc<GlobalData>, stream: TcpStream, addr
     {
         let mut connections = global_data.connections.write().await;
         connections.remove(&id);
+    }
+    {
+        let room = data.room.read().await;
+        if let Some(room_id) = *room {
+            check_chatroom_empty(&global_data, room_id).await?;
+        }
     }
 
     Ok(())
@@ -202,4 +215,19 @@ async fn send_protocol<T: Serialize>(ws_stream: &mut WebSocketStream<TcpStream>,
     let msg = serde_json::to_string(&msg)?;
     ws_stream.send(Message::Text(Utf8Bytes::from(msg))).await?;
     Ok(())
+}
+
+pub async fn check_chatroom_empty(global_data: &GlobalData, room_id: i32) -> Result<bool, AnyErr> {
+    let connections = global_data.connections.read().await;
+    for connection in connections.values() {
+        let connection_room = connection.room.read().await;
+        if let Some(room) = *connection_room {
+            if room == room_id {
+                return Ok(false);
+            }
+        }
+    }
+
+    delete_room(&global_data.database_pool, room_id).await?;
+    Ok(true)
 }

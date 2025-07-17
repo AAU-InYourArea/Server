@@ -8,6 +8,7 @@ futures-util = "0.3.31"
 rand = "*"
 serde = "*"
 serde_json = "*"
+bytes = "1.10.1"
 
 [dependencies.tokio]
 version = "*"
