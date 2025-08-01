@@ -4,8 +4,9 @@ use crate::database::accounts::set_session;
 use crate::error::{AnyErr, ProtocolError};
 
 pub async fn logout(global_data: Arc<GlobalData>, connection_data: Arc<ConnectionData>) -> Result<(), AnyErr> {
+    // Clear the session token for this account
     let mut account = connection_data.account.write().await;
     account.session = None;
     set_session(&global_data.database_pool, account.id, None).await?;
-    Err(ProtocolError::LoggedOut.into())
+    Err(ProtocolError::LoggedOut.into()) // return an error so the main loop breaks
 }

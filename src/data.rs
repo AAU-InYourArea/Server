@@ -41,10 +41,10 @@ pub struct ConnectionData {
 
 impl ConnectionData {
     pub async fn reevaluate_broadcast(&self, list: &Vec<Arc<ConnectionData>>) {
-        let room = async { self.room.read().await.clone() }.await;
+        let room = async { self.room.read().await.clone() }.await; // scope to drop the lock early
 
         let mut results = Vec::new();
-        if let Some(room) = room {
+        if let Some(room) = room { // if we are in a room, we only broadcast to others in the same room
             for conn in list {
                 if conn.id == self.id {
                     continue;
@@ -57,7 +57,7 @@ impl ConnectionData {
 
                 results.push(conn.id);
             }
-        } else {
+        } else { // otherwise, we broadcast to all connections in the same frequency and within the TALK_RADIUS
             let frequency = self.frequency.read().await.clone();
             let position = self.position.read().await.clone();
 

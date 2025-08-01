@@ -1,5 +1,6 @@
 use serde::Deserialize;
 
+/// generic top-level request structure for direct requests
 #[derive(Deserialize)]
 pub struct DirectRequest {
     #[serde(rename = "commandId")]

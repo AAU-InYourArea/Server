@@ -15,8 +15,9 @@ use tokio_tungstenite::tungstenite::{Message, Utf8Bytes};
 use bytes::Bytes;
 use crate::endpoints::rooms::{create_room_request, get_rooms_request, join_room_request, leave_room_request};
 
+/// handle a websocket message from the client
 pub async fn direct_request(global_data: Arc<GlobalData>, connection_data: Arc<ConnectionData>, message: Message) -> Result<(), AnyErr> {
-    if message.is_text() {
+    if message.is_text() { // text messages are treated as commands
         let request = message.into_text()?;
         let request: DirectRequest = serde_json::from_str(request.as_str())?;
 
@@ -31,19 +32,21 @@ pub async fn direct_request(global_data: Arc<GlobalData>, connection_data: Arc<C
             "rooms" => get_rooms_request(global_data, connection_data, request.command_id).await,
             _ => Ok(())
         }
-    } else if message.is_binary() {
-        let username = {
+    } else if message.is_binary() { // binary messages are assumed to be voice data
+        let username = { // get the username from the connection data
             let account = connection_data.account.read().await;
             account.username.clone()
         };
         let data = message.into_data();
-        //add a byte in front
+        // add a byte in front with the length of the username
+        // add the username as well
         let mut data_with_sender = vec![];
         data_with_sender.push(username.len() as u8);
         data_with_sender.extend_from_slice(username.as_bytes());
         data_with_sender.extend_from_slice(data.as_ref());
         let message = Message::Binary(Bytes::from(data_with_sender));
 
+        // send the message to all connections that can hear this connection
         let broadcast = connection_data.broadcast.read().await;
         for conn in global_data.connections.read().await.values() {
             if broadcast.contains(&conn.id) {
